@@ -19,8 +19,10 @@ package com.example.android.kotlincoroutines.main
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.android.kotlincoroutines.util.BACKGROUND
 import com.example.android.kotlincoroutines.util.singleArgViewModelFactory
+import kotlinx.coroutines.launch
 
 /**
  * MainViewModel designed to store and manage UI-related data in a lifecycle conscious way. This
@@ -101,11 +103,13 @@ class MainViewModel(private val repository: TitleRepository) : ViewModel() {
      * Wait one second then update the tap count.
      */
     private fun updateTaps() {
-        // TODO: Convert updateTaps to use coroutines
-        tapCount++
-        BACKGROUND.submit {
-            Thread.sleep(1_000)
+        viewModelScope.launch {
+            // TODO: Convert updateTaps to use coroutines
+            tapCount++
+//        BACKGROUND.submit {
+//            Thread.sleep(1_000) // 这个如果在主线程，会阻塞UI,所以_snackBar不会转动
             _taps.postValue("${tapCount} taps")
+//        }
         }
     }
 
@@ -119,18 +123,28 @@ class MainViewModel(private val repository: TitleRepository) : ViewModel() {
     /**
      * Refresh the title, showing a loading spinner while it refreshes and errors via snackbar.
      */
-    fun refreshTitle() {
+     fun refreshTitle() {
         // TODO: Convert refreshTitle to use coroutines
-        _spinner.value = true
-        repository.refreshTitleWithCallbacks(object : TitleRefreshCallback {
-            override fun onCompleted() {
-                _spinner.postValue(false)
+        viewModelScope.launch {
+            try {
+                _spinner.value = true
+                repository.refreshTitle()
+            } catch (error: TitleRefreshError) {
+                _snackBar.value = error.message
             }
-
-            override fun onError(cause: Throwable) {
-                _snackBar.postValue(cause.message)
-                _spinner.postValue(false)
-            }
-        })
+            _spinner.value = false
+        }
     }
+
+//        _spinner.value = true
+//        repository.refreshTitleWithCallbacks(object : TitleRefreshCallback {
+//            override fun onCompleted() {
+//                _spinner.postValue(false)
+//            }
+//
+//            override fun onError(cause: Throwable) {
+//                _snackBar.postValue(cause.message)
+//                _spinner.postValue(false)
+//            }
+//        })
 }
